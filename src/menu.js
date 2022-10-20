@@ -1,9 +1,10 @@
-module.exports = function menu (employees) {
+require('dotenv').config();
+require('console.table');
+
+async function menu () {
   const inquirer = require('inquirer');
-  const html_maker = require('./html_maker');
-  const server = require('../server');
-  inquirer
-    .prompt([
+  // const update = require('../helpers/update');
+  const answer = await inquirer.prompt([
       {
         type: 'list',
         name: 'select',
@@ -18,19 +19,44 @@ module.exports = function menu (employees) {
         ],
       },
     ])
-    .then(answers => {
-      if (answers.select === "View all departments") {
-        
-      } else if (answers.select === "View all roles") {
-        
-      } else if (answers.select === "Add departments") {
+    if (answer === 'View all departments' || answer === 'View all roles') {
+      let table = answer.slice(9);
+      view(table);
+    } else if (answer === "Update an employee role"){
+      update();
+    } else {
+      
+    }
+}
 
-      } else if (answers.select === "Add roles") {
-
-      } else if (answers.select === "Add employees") {
-
+function view(table) {
+  const db = mysql.createConnection(
+    {
+      host: 'localhost',
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME
+    },
+    console.log(`Connected to the movies_db database.`)
+  );
+  if (table === "roles") {
+    db.query(`SELECT *
+    FROM roles
+    JOIN employees ON employees.role_id = roles.id;`, (error,result) => {
+      if (error) {
+        console.log(error)
       } else {
-        html_maker(employees);
+        console.log(result)
       }
     });
+  } else {
+    db.query(`SELECT * FROM departments`, (error,result) => {
+      if (error) {
+        console.log(error)
+      } else {
+        console.log(result)
+      }
+    });
+  }
+  menu();
 }
