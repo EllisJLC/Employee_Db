@@ -20,7 +20,9 @@ Program designed to assist with organizing company employee information includin
 
 ## Usage
 
-To organize employee roles and departments in any given company.
+To organize employee roles and departments in any given company. Seen through the following video:
+
+https://youtu.be/1s6cpEbKOI4
 
 ## Test
 
