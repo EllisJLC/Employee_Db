@@ -3,7 +3,19 @@ require('dotenv').config();
 require('console.table');
 const mysql = require('mysql2');
 const inquirer = require('inquirer');
+
+const db = mysql.createConnection(
+  {
+    host: 'localhost',
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME
+  },
+  console.log(`Connected to the employees_db database.`)
+);
+
 menu();
+
 
 async function menu () {
   // const update = require('../helpers/update');
@@ -19,14 +31,14 @@ async function menu () {
           "Add department",
           "Add role",
           "Add employee",
-          "Update an employee role"
+          "Update an employee"
         ],
       },
     ])
-    if (answer.select === 'View all departments' || answer.select === 'View all roles') {
+    if (answer.select === 'View all departments' || answer.select === 'View all roles' || answer.select === 'View all employees') {
       let table = answer.select.slice(9);
       view(table);
-    } else if (answer.select === "Update an employee role"){
+    } else if (answer.select === "Update an employee"){
       update();
     } else {
       let newEntry = answer.select.slice(4);
@@ -35,26 +47,18 @@ async function menu () {
 }
 
 function view(table) {
-  const db = mysql.createConnection(
-    {
-      host: 'localhost',
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME
-    },
-    console.log(`Connected to the movies_db database.`)
-  );
   if (table === "roles") {
     db.query(`SELECT *
-    FROM roles
-    JOIN employees ON employees.role_id = roles.role_id;`, (error,result) => {
+    FROM departments
+    JOIN roles ON roles.department_id = departments.department_id;`, (error,result) => {
       if (error) {
         console.log(error)
       } else {
         console.table(result)
+        
       }
+      menu();
     })
-    menu();
   } else if (table === "departments") {
     db.query(`SELECT * FROM departments`, (error,result) => {
       if (error) {
@@ -62,21 +66,22 @@ function view(table) {
       } else {
         console.table(result)
       }
+      menu();
     });
-    menu();
+  } else {
+    db.query(`
+      SELECT employees.employee_id AS id, employees.first_name AS 'First Name', employees.last_name AS 'Last Name', title AS 'Title', salary AS Salary, department_name AS Department, CONCAT(e.first_name, ' ', e.last_name) AS Manager FROM employees JOIN roles ON employees.role_id = roles.role_id JOIN departments on departments.department_id = roles.department_id LEFT JOIN employees e on employees.manager_id = e.employee_id;`, (error,result) => {
+      if (error) {
+        console.log(error)
+      } else {
+        console.table(result)
+      }
+      menu()
+    });
   }
 }
 
 async function update() {
-  const db = mysql.createConnection(
-    {
-      host: 'localhost',
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME
-    },
-    console.log(`Connected to the movies_db database.`)
-  );
   const employeeUpdate = await inquirer.prompt([
     {
       type: "input",
@@ -97,20 +102,24 @@ async function update() {
       message: "Input new value"
     }
   ]);
-  console.log(employeeUpdate)
-  menu();
+  if (employeeUpdate.newtext === '1' && employeeUpdate.option==="role_id") {
+    db.query(`UPDATE employees SET manager_id = null WHERE employee_id = ${employeeUpdate.id}`, (error,result) => {
+      if (error) {
+        console.log(error)
+      }
+    })
+  }
+  db.query(`UPDATE employees SET ${employeeUpdate.option} = "${employeeUpdate.newtext}" WHERE employee_id = ${employeeUpdate.id}`,(error,result) => {
+    if (error) {
+      console.log(error);
+    } else {
+      console.log("Updated successfully!")
+    }
+    menu();
+  })
 }
 
 async function add(newEntry) {
-  const db = mysql.createConnection(
-    {
-      host: 'localhost',
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      database: process.env.DB_NAME
-    },
-    console.log(`Connected to the movies_db database.`)
-  );
   if (newEntry === "employee") {
     const newEmployee = await inquirer.prompt([
       {
@@ -131,14 +140,15 @@ async function add(newEntry) {
         message: "Input employee's role id"
       }
     ]);
-    db.query(`INSERT INTO employees (first_name, last_name, manager_id, role_id) VALUES (${newEmployee.first_name}, ${newEmployee.last_name}, ${newEmployee.manager_id}, ${newEmployee.role_id})`, (error,result) => {
+    db.query(`INSERT INTO employees (first_name, last_name, manager_id, role_id) VALUES ("${newEmployee.first_name}", "${newEmployee.last_name}", "${newEmployee.manager_id}", "${newEmployee.role_id}")`, (error,result) => {
       if (error) {
         console.log(error);
       } else {
         console.log("Successfully added employee!")
       }
+      menu();
     });
-    menu();
+    
   } else if (newEntry === "role") {
     const newRole = await inquirer.prompt([
       {
@@ -155,14 +165,14 @@ async function add(newEntry) {
         message: "Input department id:"
       }
     ]);
-    db.query(`INSERT INTO roles (title, salary, dept_id) VALUES (${newRole.title}, ${newRole.salary}, ${newRole.dept_id})`, (error,result) => {
+    db.query(`INSERT INTO roles (title, salary, department_id) VALUES ("${newRole.title}", "${newRole.salary}", "${newRole.department_id}")`, (error,result) => {
       if (error) {
         console.log(error);
       } else {
         console.log("Successfully added role!")
       }
+      menu();
     });
-    menu();
   } else {
     const newDept = await inquirer.prompt([
     {
@@ -171,13 +181,13 @@ async function add(newEntry) {
       message: "Name of department: "
     }
     ])
-    db.query(`INSERT INTO ROLES (dept_name) VALUES (${newDept.name})`, (error,result) => {
+    db.query(`INSERT INTO departments (department_name) VALUES ("${newDept.name}")`, (error,result) => {
       if (error) {
         console.log(error);
       } else {
         console.log("Successfully added department!")
       }
+      menu();
     });
   }
-  
 }
